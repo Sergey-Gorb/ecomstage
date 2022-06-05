@@ -18,18 +18,22 @@ class Ozonpop:
         }
         s_req = f'{self.url}/candidates'
         res = requests.post(s_req, headers=self.headers, json=d_candidates)
+        if not res.ok:
+            return
         return json.loads(res.text)
 
     def get_actions_info(self):
         s_req = f'{self.url}'
         list_candidates = []
         res = requests.get(s_req, headers=self.headers)
+        if not res.ok:
+            return
         d_actions = json.loads(res.text)
         if 'result' in d_actions.keys():
             for action in d_actions['result']:
                 i_off = 0
                 while True:
-                    d_candidates = self.get_action_candidates(action['id'], i_off)
+                    d_candidates = self.get_action_candidates(action['id'], offset=i_off)
                     if 'result' in d_candidates.keys():
                         list_products = d_candidates['result']['products']
                         list_candidates.append(product['id'] for product in list_products)
