@@ -1,7 +1,8 @@
 import requests
 import json
 from loguru import logger
-
+from request_page import get_page_get
+from tools import dict_flatten
 
 class YMpop:
     def __init__(self, campaign_id: str, client_id: str, token: str):
@@ -16,28 +17,40 @@ class YMpop:
             }
         self.url = f'https://api.partner.market.yandex.ru/v2/campaigns/{campaign_id}/stats/orders.json'
 
-    def get_orders(self, date_from, date_to, orders=None,
-                   statuses=["DELIVERY", "PROCESSING"]):
+    def get_orders(self, date_from):
         limit = 200
         page_token = ''
 
-        def get_page(page_token=None):
+        d_orders = {
+            "date_from": date_from,
+            "limit": limit
+        }
 
-            d_orders = {
-                "date_from": date_from,
-                "date_to": date_to,
-                "orders": orders,
-                "statuses": statuses,
-                "limit": limit
-            }
+        d_fields = {
+                  "order_id": 'id',
+                  "status": 'status',
+                  "created_at": 'createdDate',
+                  "in_process_at": 'statusUpdateDate',
+                  "sku": 'marketSku',
+                  "name": 'offerName',
+                  "quantity": 'count',
+                  "offer_id": 'shopSku',
+                  "price": 'costPerItem',
+                  "city": 'name',
+                  "payment_type_group_name": 'source',
+                  "warehouse_id": 'id',
+                  "warehouse_name": 'name',
+                  "commission_amount": 'actual'
+        }
+
+        l_orders = []
+        while True:
             s_req = f'{self.url}?limit={limit}'
             if page_token:
-                s_req +=f'page_token={page_token}'
-            return requests.post(s_req, headers=self.headers, json=d_orders)
+                s_req += f'page_token={page_token}'
 
-        orders = []
-        while True:
-            response = get_page(page_token=page_token)
+            response = get_page_get(s_req, headers=self.headers, params=d_orders)
+
             if not response.ok:
                 logger.info(f"{response.status_code}, {response.text}")
                 break
@@ -47,7 +60,11 @@ class YMpop:
                 logger.info(f"{d_postings['errors']['code']}, {d_postings['errors']['message']}")
                 break
             if 'result' in d_postings.keys():
-                orders += d_postings['result']['orders']
+                orders = d_postings['result']['orders']
+                for order_raw in orders:
+                    order = dict_flatten(order_raw)
+                    d_order = {f_key: order[f_val] for (f_key, f_val) in d_fields.items()}
+                    l_orders.append(d_order)
             else:
                 break
 
@@ -56,4 +73,4 @@ class YMpop:
             else:
                 break
 
-        return orders
+        return l_orders

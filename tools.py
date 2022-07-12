@@ -8,12 +8,29 @@ import urllib.parse
 #
 
 
+def dict_flatten(in_dict, dict_out=None, parent_key=None, separator="_"):
+    if dict_out is None:
+        dict_out = {}
+
+    for k, v in in_dict.items():
+        k = f"{parent_key}{separator}{k}" if parent_key else k
+        if isinstance(v, dict):
+            dict_flatten(in_dict=v, dict_out=dict_out, parent_key=None)
+            continue
+
+        dict_out[k] = v
+
+    return dict_out
+
+
 def get_date(week=None, days=None):
+
     date = datetime.datetime.today()
     if days:
         date = date - datetime.timedelta(days=days)
     elif week:
-        date = date - datetime.timedelta(days=(date.weekday()))
+        date = date - datetime.timedelta(weeks=week)
+        # date = date - datetime.timedelta(days=(date.weekday()))
     return date.strftime("%Y-%m-%dT00:00:00.000+03:00")
 
 
