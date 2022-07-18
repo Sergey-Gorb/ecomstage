@@ -10,12 +10,15 @@ class WBpop:
     def __init__(self, apikey: str):
         # self.client_id = client_id
         self.apikey = apikey
-        # self.headers = {"Client-Id": client_id, "Api-Key": apikey}
+        self.headers = {
+            'Authorization': f'apiKey: {self.apikey}'
+        }
+        #   self.url = f'https://api.partner.market.yandex.ru/v2/campaigns/{campaign_id}/stats/orders.json'
         self.url = f'https://suppliers-stats.wildberries.ru'
 
     def build_headers(self):
         return {
-            "Authorization": self.apikey,
+            "apiKey": self.apikey,
             "accept": "application/json",
             "Content-Type": "application/json",
         }
@@ -40,7 +43,8 @@ class WBpop:
             "warehouseName": "warehouseName"
         }
 
-        response = get_page_get(s_req, self.build_headers(), params)
+        #   response = get_page_get(s_req, self.headers, params)
+        response = get_page_get(s_req, params=params)
         if not response:
             return []
 
@@ -75,13 +79,14 @@ class WBpop:
             "warehouse_id": "wbWhId",
         }
 
-        response = get_page_get(s_req, self.build_headers(), params)
+        response = get_page_get(s_req, self.headers, params)
         # verifying from file
         # if not response:
         #     with open('wb.json',encoding='utf8') as f:
         #         batch = json.load(f)
         # return []
-
+        if not response:
+            return []
         batch = response.json()
         total = int(batch.get("total"))
         logger.info(f"Total {total} products")

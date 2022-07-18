@@ -5,6 +5,7 @@ from loguru import logger
 import pandas as pd
 from request_page import get_page_post
 from pandas.io.json import json_normalize
+from tools import dict_flatten, list_dict_flatten
 
 
 class Ozonpop:
@@ -119,9 +120,12 @@ class Ozonpop:
                            'in_process_at']
                 # works_data.head(3)
 
-                for order in d_postings['result']:
+                for order_raw in d_postings['result']:
                     # pprint(order, sort_dicts=False)
                     print('------------NEW ORDER')
+                    order = dict_flatten(order_raw, separator=None)
+                    pprint(order, sort_dicts=False)
+
                     # works_data = pd.json_normalize(order['analytics_data'],
                     #                                #    record_path=['analytics_data'],
                     #                                meta=column1,
@@ -133,7 +137,7 @@ class Ozonpop:
                                                    #                              record_path=['products'],
                                                    #                              meta=['order_id', 'order_number'],
                                                    #                              errors='ignore',
-                                                   max_level=1,
+                                                   max_level=0,
                                                    sep='_'
                                                    )
                     # works_data = works_data.drop(columns=['products',
@@ -143,43 +147,87 @@ class Ozonpop:
                     #                                       'additional_data'])
                     l_col = list(works_data.columns)
                     #  pprint(order['products'], sort_dicts=False)
+                    print('----------------------------works_data')
                     pprint(l_col)
                     pprint(works_data.keys())
+
+                    list_products = list_dict_flatten(order_raw['products'], separator='_')
+                    print('---------------------------products_data_flatten')
+                    pprint(list_products)
+
                     print('---------------------------products_data')
-                    products_data = pd.json_normalize(order,
+                    products_data = pd.json_normalize(order_raw,
                                                       record_path=['products'],
                                                       meta=['order_id', 'order_number'],
                                                       #    errors='ignore',
                                                       #    max_level=0
                                                       )
                     l_col = list(products_data.columns)
-                    pprint(order['products'], sort_dicts=False)
+                    pprint(order_raw['products'], sort_dicts=False)
                     pprint(l_col)
                     pprint(products_data.keys())
 
-                    print('---------------------------fd_products_data')
-                    fd_products_data = pd.json_normalize(order['financial_data']['products'],
-                                                               sep='_',
-                                                              #    record_path=['products'],
-                                                              #    meta=['order_id', 'order_number'],
-                                                              #    errors='ignore',
-                                                              #    max_level=0
-                                                         )
-                    f_col = list(fd_products_data.columns)
-                    pprint(order['financial_data']['products'], sort_dicts=False)
-                    pprint(f_col)
-                    pprint(fd_products_data.keys())
-
+                    print('------------------------fd products list dict flatten')
+                    # for fd_products in order_raw['financial_data']['products']:
+                    #     order_fd_product = dict_flatten(fd_products, parent_key='fd')
+                    #     pprint(order_fd_product, sort_dicts=False)
+                    temp = list_dict_flatten(order_raw['financial_data']['products'], parent_key='fd')
+                    pprint(temp, sort_dicts=False)
+                    # fd_products_data = pd.json_normalize(list_dict_flatten(order_raw['financial_data']['products'],
+                    #                                                        parent_key='fd'))
+                    fd_products_data = pd.json_normalize(temp)
+                    #   pprint(fd_products_data, sort_dicts=False)
+                    #   order_fd_posting = dict_flatten(order_raw['financial_data']['posting_services'],
                     print('---------------------------products_data marge fd_products')
                     products_merge = pd.merge(products_data, fd_products_data, how='left',
-                                              left_on='sku', right_on='product_id')
+                                              left_on='sku', right_on='fd_product_id')
                     l_col = list(products_merge.columns)
                     # pprint(order['products'], sort_dicts=False)
                     pprint(l_col)
                     pprint(products_merge.keys())
 
+
+
+                    #   fd_products_data = pd.json_normalize(order['financial_data']['products'],
+                    #   fd_products_data = pd.json_normalize(order['financial_data']['products'],
+                    print('------------------------fd posting flatten')
+                    order_fd_posting = dict_flatten(order_raw['financial_data']['posting_services'],
+                                                    parent_key='fd_posting',
+                                                    #   separator=None
+                                                    )
+                    # order_fd_posting = dict_flatten(order_raw['financial_data'],
+                    #                                 parent_key='fd', separator=None)
+                    pprint(order_fd_posting, sort_dicts=False)
+
+                    print('---------------------------fd_posting')
+                    fd_posting = pd.json_normalize(order_raw['financial_data']['posting_services'],
+                                                         sep='_',
+                                                         #    record_path=['products'],
+                                                         #    meta=['order_id', 'order_number'],
+                                                         #    errors='ignore',
+                                                         #    max_level=0
+                                                         )
+                    f_col = list(fd_posting.columns)
+                    pprint(order_raw['financial_data']['posting_services'], sort_dicts=False)
+                    pprint(f_col)
+                    pprint(fd_posting.keys())
+
+                    print('---------------------------fd_products_data')
+                    #   fd_products_data = pd.json_normalize(order['financial_data']['products'],
+                    #   fd_products_data = pd.json_normalize(order['financial_data']['products'],
+                    # fd_products_data = pd.json_normalize(order_raw['financial_data']['products'],
+                    #                                      sep='_',
+                                                         #    record_path=['products'],
+                                                         #    meta=['order_id', 'order_number'],
+                                                         #    errors='ignore',
+                                                         #    max_level=0
+                                                         #)
+                    #f_col = list(fd_products_data.columns)
+                    #pprint(order_raw['financial_data']['products'], sort_dicts=False)
+                    #pprint(f_col)
+                    #pprint(fd_products_data.keys())
                     print('---------------------------fd_posting_data')
-                    fd_posting_data = pd.json_normalize(order['financial_data']['posting_services'],
+                    fd_posting_data = pd.json_normalize(order_raw['financial_data']['posting_services'],
                                                        #
                                                        #    record_path=['products'],
                                                        #    meta=['order_id', 'order_number'],
@@ -187,7 +235,7 @@ class Ozonpop:
                                                        #    max_level=0
                                                        )
                     f_col = list(fd_posting_data.columns)
-                    pprint(order['financial_data']['posting_services'], sort_dicts=False)
+                    pprint(order_raw['financial_data']['posting_services'], sort_dicts=False)
                     pprint(f_col)
                     pprint(fd_posting_data.keys())
                     #   df_append = df1.append(df2, ignore_index=True)

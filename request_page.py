@@ -34,6 +34,7 @@ def get_page_post(s_req, headers=None, json=None, timeout=3.05):
 def get_page_get(s_req, headers=None, params=None, timeout=3.05):
 
     try:
+        print(headers)
         response = requests.get(s_req, headers=headers, params=params, timeout=timeout)
         response.raise_for_status()
     except requests.ConnectionError as e:
