@@ -4,6 +4,8 @@ from loguru import logger
 from request_page import get_page_post
 from tools import dict_flatten
 from pprint import pprint
+import pandas as pd
+
 
 class YMpop:
     def __init__(self, campaign_id: str, client_id: str, token: str):
@@ -15,39 +17,18 @@ class YMpop:
         self.url = f'https://api.partner.market.yandex.ru/v2/campaigns/{campaign_id}/stats/orders.json'
 
     def get_orders(self, date_from):
-        limit = 10
+        limit = 200
         page_token = ''
 
         d_orders = {
-            "date_from": date_from,
+            "dateFrom": date_from,
             "limit": limit
         }
-
-        d_fields = {
-                  "order_id": 'id',
-                  "status": 'status',
- 
-                  "created_at": 'creationDate',
-                  "in_process_at": 'statusUpdateDate',
-                  "sku": 'marketSku',
-                  "name": 'offerName',
-                  "quantity": 'count',
-                  "offer_id": 'shopSku',
-                  "price": 'costPerItem',
-                  "city": 'name',
-                  "payment_type_group_name": 'source',
-                  "warehouse_id": 'id',
-                  "warehouse_name": 'name',
-                  "commission_amount": 'actual'
-        }
-
         l_orders = []
         while True:
-            print(f'Page Token {page_token}')
             s_req = f'{self.url}'
             if page_token:
-
-                s_req += f'page_token={page_token}'
+                s_req += f'?page_token={page_token}'
 
             response = get_page_post(s_req, headers=self.headers, json=d_orders, timeout=10)
             if not response:
@@ -64,12 +45,8 @@ class YMpop:
             if 'result' in d_postings.keys():
                 orders = d_postings['result']['orders']
                 for order_raw in orders:
-                    print('NEW ORDER')
-                    pprint(order_raw, sort_dicts=False)
                     order = dict_flatten(order_raw)
-                    pprint(order, sort_dicts=False)
                     d_order = dict()
-                    #   d_order = {f_key: order[f_val] for (f_key, f_val) in d_fields.items()}
                     for item in order['items']:
                         d_order['order_id'] = order.get('id', '')
                         d_order['status'] = order.get('status', 0)
@@ -84,20 +61,14 @@ class YMpop:
                                 d_order['fd_price'] = price.get('costPerItem', 0)
                             if price['type'] == 'MARKETPLACE':
                                 d_order['fd_total_discount_value'] = price.get('costPerItem', 0)
-                        d_order['city'] = order.get('name', '')
+                        d_order['city'] = order.get('deliveryRegion_name', '')
                         d_order['payment_type_group_name'] = order.get('paymentType', '')
                         d_order['warehouse_id'] = order.get('deliveryRegion_id', 0)
                         d_order['warehouse_name'] = order.get('deliveryRegion_name', '')
                         actual = 0
-                    # for commission in order['commissions']:
-                    #     actual += commission.get('actual', 0)
-                    # d_order['fd_commission_amount'] = actual
                     d_order['fd_commission_amount'] = sum(commission.get('actual', 0)
                                                           for commission in order['commissions'])
-
-                    print('NEW ORDER ITEM')
-                    pprint(d_order, sort_dicts=False)
-                    l_orders.append(d_order)
+                l_orders.append(d_order)
             else:
                 break
 
@@ -105,5 +76,5 @@ class YMpop:
                 page_token = d_postings['result']['paging']['nextPageToken']
             else:
                 break
-
-        return l_orders
+        orders_df = pd.DataFrame(l_orders)
+        return orders_df

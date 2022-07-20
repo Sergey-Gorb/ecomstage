@@ -25,6 +25,7 @@ def dict_flatten(in_dict, dict_out=None, parent_key=None, separator="_"):
     for k, v in in_dict.items():
         k = f"{parent_key}{separator}{k}" if separator and parent_key else k
         if isinstance(v, dict):
+            #   dict_flatten(in_dict=v, dict_out=dict_out, parent_key=k if parent_key else None, separator=separator)
             dict_flatten(in_dict=v, dict_out=dict_out, parent_key=k, separator=separator)
             continue
 
@@ -33,7 +34,7 @@ def dict_flatten(in_dict, dict_out=None, parent_key=None, separator="_"):
     return dict_out
 
 
-def get_date(week=None, days=None):
+def get_date(week=None, days=None, only_date=False):
 
     date = datetime.datetime.today()
     if days:
@@ -41,7 +42,8 @@ def get_date(week=None, days=None):
     elif week:
         date = date - datetime.timedelta(weeks=week)
         # date = date - datetime.timedelta(days=(date.weekday()))
-    return date.strftime("%Y-%m-%dT00:00:00.000+03:00")
+    res = date.strftime("%Y-%m-%d") if only_date else date.strftime("%Y-%m-%dT00:00:00.000+03:00")
+    return res
 
 
 # def api_key_required(func):
