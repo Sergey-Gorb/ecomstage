@@ -4,6 +4,7 @@ from loguru import logger
 from request_page import get_page_get
 from tools import dict_flatten
 import pandas as pd
+from uuid import uuid4
 from pprint import pprint
 
 from tools import get_date
@@ -13,19 +14,14 @@ class WBpop:
     def __init__(self, apikey: str, token: str):
         self.apikey = apikey
         self.token = token
+        self.result_fbo = True
+        self.result_fbs = True
         self.headers = {
             'Authorization'
             '': f'{self.token}'
         }
         self.url = 'https://suppliers-stats.wildberries.ru'
         self.url2 = 'https://suppliers-api.wildberries.ru'
-
-    # def build_headers(self):
-    #     return {
-    #         "apiKey": self.apikey,
-    #         "accept": "application/json",
-    #         "Content-Type": "application/json",
-    #     }
 
     def get_orders_fbo(self, date_start):
         s_req = f'{self.url}/api/v1/supplier/orders'
@@ -36,31 +32,42 @@ class WBpop:
             "key": self.apikey
         }
 
-        d_fields = {
+        d_fields_o = {
             "order_id": "gNumber",
-            "created_at": "Date",
-            "sku": "nmId",
-            "offer_id": "supplierArticle",
-            "fd_price": "totalPrice",
-            "region": "oblastOkrugName",
-            "city": "regionName",
-            "warehouseName": "warehouseName"
+            "created_at": "date",
+            "in_process_at": "lastChangeDate",
+            "analytics_data_region": "oblast",
+            "analytics_data_warehouse": "warehouseName"
         }
 
+        d_fields_p = {
+            "sku": "nmId",
+            "fd_price": "totalPrice",
+            "offer_id": "supplierArticle",
+        }
         response = get_page_get(s_req, params=params)
         if not response:
-            return pd.DataFrame()
+            self.result_fbo = False
+            return
 
-        orders = []
+        l_orders = []
+        l_products = []
         batch = response.json()
-        for order_raw in orders:
-            order = dict_flatten(order_raw)
-            d_order = {f_key: order[f_val] for (f_key, f_val) in d_fields.items()}
-            orders.append(d_order)
+        l_batch = json.loads(response.text)
+        for order_raw in l_batch:
+            order_uuid = uuid4().hex
+            order = dict_flatten(order_raw, separator=None)
+            d_order = {f_key: order[f_val] for (f_key, f_val) in d_fields_o.items()}
+            d_order['order_uuid'] = order_uuid
+            l_orders.append(d_order)
 
-        logger.info(f"Got orders from marketplace {len(orders)} pcs.")
-        orders_df = pd.DataFrame(orders)
-        return orders_df
+            d_products = {f_key: order[f_val] for (f_key, f_val) in d_fields_p.items()}
+            d_products['order_uuid'] = order_uuid
+            l_products.append(d_products)
+        orders_df = pd.DataFrame(l_orders)
+        products_df = pd.DataFrame(l_products)
+
+        return orders_df, products_df
 
     def get_orders_fbs(self, date_start):
         s_req = f'{self.url2}/api/v2/orders'
@@ -71,31 +78,42 @@ class WBpop:
             "take": offset,
             "date_start": date_start,
         }
-        d_fields = {
-            'order_id': 'orderId',
+        d_fields_o = {
+            "order_id": "orderId",
             "created_at": "dateCreated",
+            "analytics_data_city": "city",
+            "analytics_data_delivery_type": "deliveryType",
+            "analytics_data_warehouse_id": "wbWhId",
+        }
+
+        d_fields_p = {
             "sku": "chrtId",
-            "fd_price": "totalPrice",
-            "city": "city",
-            "delivery_type":"deliveryType",
-            "warehouse_id": "wbWhId",
+            "price": "totalPrice",
         }
 
         response = get_page_get(s_req, headers=self.headers, params=params)
         if not response:
-            return pd.DataFrame()
+            self.result_fbs = False
+            return
         batch = response.json()
         total = int(batch.get("total"))
-        logger.info(f"Total {total} products")
         attempt = 0
         l_orders = []
+        l_products = []
+
         while total > 0:
             orders = batch['orders']
             for order_raw in orders:
                 skip += 1
+                order_uuid = uuid4().hex
                 order = dict_flatten(order_raw, separator=None)
-                d_order = {f_key: order[f_val] for (f_key, f_val) in d_fields.items()}
+                d_order = {f_key: order[f_val] for (f_key, f_val) in d_fields_o.items()}
+                d_order['order_uuid'] = order_uuid
                 l_orders.append(d_order)
+
+                d_products = {f_key: order[f_val] for (f_key, f_val) in d_fields_p.items()}
+                d_products['order_uuid'] = order_uuid
+                l_products.append(d_products)
             total -= skip
             if total <= 0:
                 break
@@ -106,9 +124,9 @@ class WBpop:
             }
             orders = get_page_get(s_req, headers=self.headers, params=params).json()["orders"]
 
-        logger.info(f"Got orders from marketplace {len(l_orders)} pcs.")
         orders_df = pd.DataFrame(l_orders)
+        products_df = pd.DataFrame(l_products)
 
-        return orders_df
+        return orders_df, products_df
 
 
