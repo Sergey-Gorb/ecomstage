@@ -55,14 +55,15 @@ class WBpop:
         batch = response.json()
         l_batch = json.loads(response.text)
         for order_raw in l_batch:
-            order_uuid = uuid4().hex
+            # order_uuid = uuid4().hex
+            order_id = order_raw['gNumber']
             order = dict_flatten(order_raw, separator=None)
             d_order = {f_key: order[f_val] for (f_key, f_val) in d_fields_o.items()}
-            d_order['order_uuid'] = order_uuid
+            # d_order['order_uuid'] = order_uuid
             l_orders.append(d_order)
 
             d_products = {f_key: order[f_val] for (f_key, f_val) in d_fields_p.items()}
-            d_products['order_uuid'] = order_uuid
+            d_products['order_id'] = order_id
             l_products.append(d_products)
         orders_df = pd.DataFrame(l_orders)
         products_df = pd.DataFrame(l_products)
@@ -105,14 +106,15 @@ class WBpop:
             orders = batch['orders']
             for order_raw in orders:
                 skip += 1
-                order_uuid = uuid4().hex
+                # order_uuid = uuid4().hex
+                order_id = order_raw['orderId']
                 order = dict_flatten(order_raw, separator=None)
                 d_order = {f_key: order[f_val] for (f_key, f_val) in d_fields_o.items()}
-                d_order['order_uuid'] = order_uuid
+                # d_order['order_uuid'] = order_id
                 l_orders.append(d_order)
 
                 d_products = {f_key: order[f_val] for (f_key, f_val) in d_fields_p.items()}
-                d_products['order_uuid'] = order_uuid
+                d_products['order_id'] = order_id
                 l_products.append(d_products)
             total -= skip
             if total <= 0:

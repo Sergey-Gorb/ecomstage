@@ -2,9 +2,7 @@ import psycopg2
 from psycopg2 import sql
 from psycopg2.extras import execute_batch
 import pandas as pd
-from io import StringIO
 import sys
-from pprint import pprint
 
 
 # define a function that will execute SQL statements
@@ -38,6 +36,18 @@ def execute_sql(cursor, statement, ident=None):
             print("execute_sql() ERROR:", err)
 
 
+def deleteTable(conn, tableName):
+
+    cur = conn.cursor
+    sql_statement = """
+    DELETE FROM {} WHERE ctid IN 
+    (SELECT ctid FROM (SELECT *, ctid, row_number() OVER (PARTITION BY order_id ORDER BY id DESC)
+     FROM orders) s WHERE row_number >= 2)
+    ;""".format(tableName)
+    execute_sql(cur, sql_statement, ident=str(tableName))
+    cur.close()
+
+
 def dbConnect (db_parm, username_parm, host_parm, pw_parm):
     # Parse in connection information
     credentials = {'host': host_parm, 'database': db_parm, 'user': username_parm, 'password': pw_parm}
@@ -49,26 +59,7 @@ def dbConnect (db_parm, username_parm, host_parm, pw_parm):
     return ps_conn, ps_cur
 
 
-def createTable(cur, table_name):
-    sql_statement = """
-    DROP TABLE IF EXISTS {}
-    ;""".format(table_name)
-    #execute_sql(cur, sql_statement, ident='table_name')
-
-    sql_statement = """
-    CREATE TABLE {} (
-    mp_log_id SERIAL PRIMARY KEY,
-    order_uuid VARCHAR(32) NOT NULL,
-    order_id VARCHAR(32) NOT NULL,
-    account_list_id INTEGER NOT NULL,
-    log_date timestamp NOT NULL DEFAULT NOW()
-    );""".format(table_name)
-
-    # print the psycopg2.sql.SQL object
-    print("CREATE TABLE sql_statement:\n", sql_statement)
-
-    # call the function to create table
-    #execute_sql(cur, sql_statement, ident='table_name')
+def createTable(cur):
 
     table_name2 ='orders'
     sql_statement = """
@@ -78,7 +69,7 @@ def createTable(cur, table_name):
 
     sql_statement = """
     CREATE TABLE {} (
-    order_uuid VARCHAR(32) NOT NULL,
+    id SERIAL PRIMARY KEY NOT NULL,
     order_id VARCHAR(50) NOT NULL,
     order_number VARCHAR(32),
     posting_number VARCHAR(32),
@@ -150,53 +141,7 @@ def createTable(cur, table_name):
     requirements_products_requiring_rnpt TEXT,
     parent_posting_number TEXT
     );""".format(table_name2)
-    #sku,name,quantity,offer_id,price,digital_codes,order_id,
-    # fd_commission_amount REAL,
-    # fd_commission_percent REAL,
-    # fd_payout REAL,
-    # fd_product_id,
-    # fd_old_price REAL,
-    # fd_price REAL,
-    # fd_total_discount_value REAL,
-    # fd_total_discount_percent REAL,
-    # fd_actions,
-    # fd_picking,
-    # fd_quantit REALy,
-    # fd_client_price REAL,
-    # fd_item_services_marketplace_service_item_fulfillment REAL,
-    # fd_item_services_marketplace_service_item_pickup REAL,
-    # fd_item_services_marketplace_service_item_dropoff_pvz REAL,
-    # fd_item_services_marketplace_service_item_dropoff_sc REAL,
-    # fd_item_services_marketplace_service_item_dropoff_ff REAL,
-    # fd_item_services_marketplace_service_item_direct_flow_trans REAL,
-    # fd_item_services_marketplace_service_item_return_flow_trans REAL,
-    # fd_item_services_marketplace_service_item_deliv_to_customer REAL,
-    # fd_item_services_marketplace_service_item_return_not_deliv_to_customer REAL,
-    # fd_item_services_marketplace_service_item_return_part_goods_customer REAL,
-    # fd_item_services_marketplace_service_item_return_after_deliv_to_customer REAL,
-    # order_number,posting_number,status,cancel_reason_id,created_at,in_process_at REAL,
-    # products,
-    # region,city,delivery_type,is_premium,payment_type_group_name,warehouse_id,warehouse_name,is_legal,
-    # marketplace_service_item_fulfillment REAL,
-    # marketplace_service_item_pickup REAL,
-    # marketplace_service_item_dropoff_pvz REAL,
-    # marketplace_service_item_dropoff_sc REAL,
-    # marketplace_service_item_dropoff_ff REAL,
-    # marketplace_service_item_direct_flow_trans REAL,
-    # marketplace_service_item_return_flow_trans REAL,
-    # marketplace_service_item_deliv_to_customer REAL,
-    # marketplace_service_item_return_not_deliv_to_customer REAL,
-    # marketplace_service_item_return_part_goods_customer REAL,
-    # marketplace_service_item_return_after_deliv_to_customer REAL,
-    # additional_data
-    #"digital_codes": [ ]
-    #    fd_actions,
 
-
-
-    #price, offer_id, name_x, sku, quantity, mandatory_mark, currency_code,  fd_commission_amount, fd_commission_percent, fd_payout, fd_product_id, fd_old_price, fd_price, fd_total_discount_value, fd_total_discount_percent, fd_actions, fd_picking, fd_quantity, fd_client_price, fd_item_services_marketplace_service_item_fulfillment, fd_item_services_marketplace_service_item_pickup, fd_item_services_marketplace_service_item_dropoff_pvz, fd_item_services_marketplace_service_item_dropoff_sc, fd_item_services_marketplace_service_item_dropoff_ff, fd_item_services_marketplace_service_item_direct_flow_trans, fd_item_services_marketplace_service_item_return_flow_trans, fd_item_services_marketplace_service_item_deliv_to_customer, fd_item_services_marketplace_service_item_return_not_deliv_to_customer, fd_item_services_marketplace_service_item_return_part_goods_customer, fd_item_services_marketplace_service_item_return_after_deliv_to_customer, posting_number, order_number, status, id, name_y, warehouse_id, warehouse, tpl_provider_id, tpl_provider, tracking_number, tpl_integration_type, in_process_at, shipment_date, delivering_date, cancel_reason_id, cancel_reason, cancellation_type, cancelled_after_ship, affect_cancellation_rating, cancellation_initiator, customer, products, addressee, barcodes, region, city, delivery_type, is_premium, payment_type_group_name, delivery_date_begin, delivery_date_end, is_legal, marketplace_service_item_fulfillment, marketplace_service_item_pickup, marketplace_service_item_dropoff_pvz, marketplace_service_item_dropoff_sc, marketplace_service_item_dropoff_ff, marketplace_service_item_direct_flow_trans, marketplace_service_item_return_flow_trans, marketplace_service_item_deliv_to_customer, marketplace_service_item_return_not_deliv_to_customer, marketplace_service_item_return_part_goods_customer, marketplace_service_item_return_after_deliv_to_customer, is_express, products_requiring_gtd, products_requiring_country, products_requiring_mandatory_mark, products_requiring_rnpt, parent_posting_number
-
-    # print the psycopg2.sql.SQL object
     print("CREATE TABLE sql_statement:\n", sql_statement)
 
     # call the function to create table
@@ -210,7 +155,8 @@ def createTable(cur, table_name):
 
     sql_statement = """
     CREATE TABLE {} (
-    order_uuid VARCHAR(32) NOT NULL,
+    id BIGINT NOT NULL,
+    order_id VARCHAR(50) NOT NULL,
     sku BIGINT,
     name VARCHAR(256),
     quantity INTEGER DEFAULT 1,
@@ -250,50 +196,6 @@ def createTable(cur, table_name):
     execute_sql(cur, sql_statement, ident='table_name3')
 
 
-def insertToTable(df, conn, cur, table):
-    output = StringIO()
-    df.to_csv(output, sep='\t', header=True, index=False)
-    pprint(output)
-    # df.to_csv(output, sep='\t', header=False, index=False)
-    output.seek(0)  # Required for rewinding the String object
-    copy_query = f"COPY {table} FROM STDOUT csv DELIMITER '\t' NULL ''  ESCAPE '\\' HEADER "
-    cur.copy_expert(copy_query, output)
-    conn.commit()
-
-
-def insertMPTable(conn, cur, df, tuples, table):
-    """
-    Using cursor.executemany() to insert the dataframe
-    """
-    # Create a list of tupples from the dataframe values
-    # tuples = list(set([tuple(x) for x in df.to_numpy()]))
-
-    # Comma-separated dataframe columns
-    cols = ','.join(list(df.columns))
-    names = ['order_uuid', 'order_id', 'account_list_id']
-    # SQL query to execute
-    query = sql.SQL("insert into mp_logs ({}) values ({})").format(
-        # sql.Identifier(table),
-        sql.SQL(', ').join(map(sql.Identifier, names)),
-        sql.SQL(', ').join(sql.Placeholder() * len(names)))
-    print(query.as_string(conn))
-    # query = "INSERT INTO %s(%s) VALUES(%%s,%%s,%%s)" % (
-    #    table, cols)
-    # query = "INSERT INTO cars (id, name, price) VALUES (%s, %s, %s)"
-
-    # cur.executemany(query, tuples)
-
-    try:
-        cur.execute(query, tuples)
-        # cur.executemany(query, tuples)
-        conn.commit()
-
-    except (Exception, psycopg2.DatabaseError) as error:
-        print("Error: %s" % error)
-        conn.rollback()
-        return 1
-
-
 def show_psycopg2_exception(err):
     # get details about the exception
     err_type, err_obj, traceback = sys.exc_info()
@@ -309,122 +211,28 @@ def show_psycopg2_exception(err):
     print("pgcode:", err.pgcode, "\n")
 
 
-    #
-    #    def createTable(ps_conn, ps_sql):
+def prepare_data_query(conn, table_orders, df_orders: pd.DataFrame, table_products, df_products: pd.DataFrame):
 
+    df_orders = df_orders.fillna(psycopg2.extensions.AsIs('NULL'))
+    column_data = ', '.join(df_orders.columns.to_list())
+    s_data = '(' + ', '.join(['%s'] * len(df_orders.columns)) + ')'
+    values_data = df_orders.to_numpy().tolist()
+    list_val = []
+    pointer = conn.cursor()
+    for val_d in values_data:
+        args = pointer.mogrify(s_data, tuple(val_d)).decode('utf8')
+        insert_query = f"insert into {table_orders} ({column_data}) values {args} returning id, order_id"
+        pointer.execute(insert_query)
+        list_val.append(list(pointer.fetchone()[0:]))
 
+    df = pd.DataFrame(list_val, columns=['id', 'order_id'])
+    products = pd.merge(df_products, df, how='left', left_on='order_id', right_on='order_id')
+    products = products.fillna(psycopg2.extensions.AsIs('NULL'))
+    df_columns = list(products)
+    columns = ",".join(df_columns)
+    values = "VALUES({})".format(",".join(["%s" for _ in df_columns]))
+    insert_stmt = f"INSERT INTO {table_products} ({columns}) {values}"
+    execute_batch(pointer, insert_stmt, products.values)
+    conn.commit()
+    pointer.close()
 
-# with conn:
-#     try:
-#         cur.execute('SELECT version()')
-#
-#         version = cur.fetchone()[0]
-#         print(version)
-#         cur.execute("DROP TABLE IF EXISTS cars")
-#         cur.execute("CREATE TABLE cars(id SERIAL PRIMARY KEY, name VARCHAR(255), price INT)")
-#         cur.execute("INSERT INTO cars(name, price) VALUES('Audi', 52642)")
-#         cur.execute("INSERT INTO cars(name, price) VALUES('Mercedes', 57127)")
-#         cur.execute("INSERT INTO cars(name, price) VALUES('Skoda', 9000)")
-#         cur.execute("INSERT INTO cars(name, price) VALUES('Volvo', 29000)")
-#
-#     except psycopg2.DatabaseError as e:
-#
-#         print(f'Error {e}')
-#         sys.exit(1)
-
-#sys.exit(0)
-
-
-def insertIntoTable(conn, cur, list_rec, table):
-    """
-    Using cursor.executemany() to insert the dataframe
-    """
-    # Create a list of tupples from the dataframe values
-    # cols = ','.join(list(df.columns))
-    # print(len(list(df.columns)), cols)
-    # values = ','.join(['%%s'] * len(df.columns))
-    # print(values)
-    # que = f'INSERT INTO {table}({cols}) VALUES('
-    # for x in df.to_numpy():
-    for rec in list_rec:
-        print(rec)
-        cols = ', '.join(str(k) for k in rec)
-        que = f'INSERT INTO {table}({cols}) VALUES('
-        vals = tuple(val for val in rec.values())
-        query = que + f'{vals})'
-        print(query)
-        print(len(rec), cols)
-        print(len(vals), vals)
-        try:
-            cur.execute(query)
-            conn.commit()
-
-        except (Exception, psycopg2.DatabaseError) as error:
-            print("Error: %s" % error)
-
-    # tuples = list(set([tuple(x) for x in df.to_numpy()]))
-
-    # Comma-separated dataframe columns
-    cols = ','.join(list(df.columns))
-    print(cols)
-    # SQL query to execute
-    query = "INSERT INTO %s(%s) VALUES(%%s,%%s,%%s,%%s)" % (
-        table, cols)
-
-    try:
-        cur.executemany(query, tuples)
-        conn.commit()
-
-    except (Exception, psycopg2.DatabaseError) as error:
-        print("Error: %s" % error)
-        conn.rollback()
-        return 1
-
-
-def insertDF(conn, cur, df, table):
-
-# df is the dataframe
-    if len(df) > 0:
-        df = df.fillna(psycopg2.extensions.AsIs('NULL'))
-        df_columns = list(df)
-        # create (col1,col2,...)
-        columns = ",".join(df_columns)
-    #
-        # create VALUES('%s', '%s",...) one '%s' per column
-        values = "VALUES({})".format(",".join(["%s" for _ in df_columns]))
-    #
-        #create INSERT INTO table (columns) VALUES('%s',...)
-        insert_stmt = "INSERT INTO {} ({}) {}".format(table,columns, values)
-    #
-    #     cur = conn.cursor()
-        execute_batch(cur, insert_stmt, df.values)
-        conn.commit()
-#     cur.close()
-
-
-# import csv
-# from io import StringIO
-#
-# from sqlalchemy import create_engine
-#
-# def psql_insert_copy(table, conn, keys, data_iter):
-#     # gets a DBAPI connection that can provide a cursor
-#     dbapi_conn = conn.connection
-#     with dbapi_conn.cursor() as cur:
-#         s_buf = StringIO()
-#         writer = csv.writer(s_buf)
-#         writer.writerows(data_iter)
-#         s_buf.seek(0)
-#
-#         columns = ', '.join('"{}"'.format(k) for k in keys)
-#         if table.schema:
-#             table_name = '{}.{}'.format(table.schema, table.name)
-#         else:
-#             table_name = table.name
-#
-#         sql = 'COPY {} ({}) FROM STDIN WITH CSV'.format(
-#             table_name, columns)
-#         cur.copy_expert(sql=sql, file=s_buf)
-#
-# engine = create_engine('postgresql://myusername:mypassword@myhost:5432/mydatabase')
-# df.to_sql('table_name', engine, if_exists='replace', method=psql_insert_copy)

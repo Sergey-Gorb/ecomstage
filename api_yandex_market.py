@@ -45,18 +45,21 @@ class YMpop:
             d_postings = json.loads(response.text)
             if d_postings['status'] == 'ERROR':
                 logger.info(f"{d_postings['errors']['code']}, {d_postings['errors']['message']}")
+                self.result = False
                 break
             if 'result' in d_postings.keys():
                 orders = d_postings['result']['orders']
-
+                if len(orders) == 0:
+                    self.result = False
+                    break
                 for order_raw in orders:
                     d_order = dict()
                     d_item = dict()
-                    uuid4_hex = uuid.uuid4().hex
-                    d_order['order_uuid'] = uuid4_hex
+                    order_id = order_raw['order_id']
                     l_items = order_raw.pop('items', list())
+                    d_order['order_id'] = order_raw.get('id', '')
                     for item in l_items:
-                        d_item['order_uuid'] = uuid4_hex
+                        d_item['order_id'] = order_id
                         d_item['sku'] = item.get('marketSku', '')
                         d_item['sku'] = item.get('marketSku', '')
                         d_item['name'] = item.get('offerName', '')
@@ -79,9 +82,8 @@ class YMpop:
                     d_order['analytics_data_payment_type_group_name'] = order.get('paymentType', '')
                     d_order['analytics_data_warehouse_id'] = order.get('deliveryRegion_id', 0)
                     d_order['analytics_data_warehouse'] = order.get('deliveryRegion_name', '')
-                    actual = 0
-                l_orders.append(d_order)
-                l_products.append(d_item)
+                    l_orders.append(d_order)
+                    l_products.append(d_item)
             else:
                 break
 

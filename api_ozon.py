@@ -44,7 +44,7 @@ class Ozonpop:
             d_params['offset'] = offset
             response = get_page_post(s_req, headers=self.headers, json=d_params)
             if not response:
-                self.result = False
+                self.result_fbs = False
                 return
 
             d_postings = json.loads(response.text)
@@ -52,7 +52,8 @@ class Ozonpop:
                 postings = d_postings['result']['postings']
                 for posting_raw in postings:
                     offset += 1
-                    order_uuid = uuid4().hex
+                    # order_uuid = uuid4().hex
+                    order_id = posting_raw['order_id']
                     products_raw = posting_raw.pop('products', dict())
                     products_data = pd.json_normalize(products_raw)
 
@@ -61,17 +62,18 @@ class Ozonpop:
                     fd_products_data = pd.json_normalize(temp)
                     products_merge = pd.merge(products_data, fd_products_data, how='left',
                                               left_on='sku', right_on='fd_product_id')
-                    products_merge.insert(0, 'order_uuid', order_uuid, allow_duplicates=False)
+                    products_merge.insert(0, 'order_id', str(order_id), allow_duplicates=False)
                     l_products.extend(products_merge.to_dict('records'))
 
                     posting = dict_flatten(posting_raw, keys_aliases={'financial_data': 'fd'})
-                    posting['order_uuid'] = order_uuid
+                    # posting['order_uuid'] = order_uuid
                     l_postings.append(posting)
                 if d_postings['result']['has_next']:
                     pass
                 else:
                     break
             else:
+                self.result_fbs = False
                 break
         products_df = pd.DataFrame(l_products)
         posting_df = pd.DataFrame(l_postings)
@@ -101,7 +103,7 @@ class Ozonpop:
             }
             response = get_page_post(s_req, headers=self.headers, json=d_params)
             if not response:
-                self.result = False
+                self.result_fbo = False
                 return
             d_postings = json.loads(response.text)
 
@@ -110,7 +112,8 @@ class Ozonpop:
                 for order_raw in d_postings['result']:
 
                     offset += 1
-                    order_uuid = uuid4().hex
+                    # order_uuid = uuid4().hex
+                    order_id = order_raw['order_id']
                     products_raw = order_raw.pop('products', dict())
                     products_data = pd.json_normalize(products_raw)
 
@@ -120,16 +123,17 @@ class Ozonpop:
                     fd_products_data = pd.json_normalize(temp)
                     products_merge = pd.merge(products_data, fd_products_data, how='left',
                                               left_on='sku', right_on='fd_product_id')
-                    products_merge.insert(0, 'order_uuid', order_uuid, allow_duplicates=False)
+                    products_merge.insert(0, 'order_id', str(order_id), allow_duplicates=False)
                     l_products.extend(products_merge.to_dict('records'))
 
                     posting = dict_flatten(order_raw, keys_aliases={'financial_data': 'fd'})
                     change_dict_key(posting, 'cancel_reason_id', 'cancellation_cancel_reason_id')
                     change_dict_key(posting, 'analytics_data_warehouse_name', 'analytics_data_warehouse')
-                    posting['order_uuid'] = order_uuid
+                    # posting['order_uuid'] = order_uuid
                     l_postings.append(posting)
 
             else:
+                self.result_fbo = False
                 break
 
         posting_df = pd.DataFrame(l_postings)
